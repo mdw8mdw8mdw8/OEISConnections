@@ -18,10 +18,10 @@ The correct sequence that includes 5 is A108 Catalan:  5,14,42,132.
 
 Full Solution:  
 
-   A45 Fibonacci:     8,13,21,34
+   A45 Fibonacci:   8,13,21,34
    
    A108 Catalan:      5,14,42,132
    
-   A142 Factorial:    2,6,24,120
+   A142 Factorial:      2,6,24,120
    
-   little Scrhoeder:  3,11,45,197
+   A1003 little Scrhoeder: 3,11,45,197
