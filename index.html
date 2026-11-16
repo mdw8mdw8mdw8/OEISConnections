@@ -43,11 +43,9 @@
         <button class="btn-solid" id="btn-next">Next Puzzle</button>
     </div>
 
-    <!-- This loads your data file directly -->
     <script src="puzzles.js"></script>
     
     <script>
-        // Automatic Error Checker
         window.onload = function() {
             if (typeof myPuzzleData === 'undefined') {
                 document.getElementById('message').innerText = "ERROR: Could not find myPuzzleData in puzzles.js!";
@@ -67,11 +65,7 @@
 
         function startNewGame() {
             allPuzzles = myPuzzleData; 
-            
-            if (allPuzzles.length === 0) {
-                document.getElementById('message').innerText = "ERROR: The puzzle list is empty.";
-                return;
-            }
+            if (allPuzzles.length === 0) return;
             
             currentPuzzle = allPuzzles[Math.floor(Math.random() * allPuzzles.length)];
             boardItems = [];
@@ -115,6 +109,16 @@
                 boardItems = boardItems.filter(item => !selectedItems.includes(item));
             } else {
                 mistakesRemaining--;
+                
+                // NEW LOGIC: Auto-reveal remaining categories when out of tries
+                if (mistakesRemaining === 0) {
+                    currentPuzzle.categories.forEach(cat => {
+                        if (!solvedCategories.includes(cat)) {
+                            solvedCategories.push(cat);
+                        }
+                    });
+                    boardItems = []; // Clear the grid
+                }
             }
             selectedItems = [];
             render();
@@ -153,9 +157,17 @@
                 grid.appendChild(btn);
             });
 
+            // NEW LOGIC: Differentiate between a win and a loss for the message
             const msg = document.getElementById('message');
-            msg.innerText = solvedCategories.length === 4 ? "Perfectly Solved!" : (mistakesRemaining === 0 ? "Out of Mistakes!" : "");
-            msg.style.color = solvedCategories.length === 4 ? "green" : "red";
+            if (mistakesRemaining === 0) {
+                msg.innerText = "Out of Mistakes! Here is the solution:";
+                msg.style.color = "red";
+            } else if (solvedCategories.length === 4) {
+                msg.innerText = "Perfectly Solved!";
+                msg.style.color = "green";
+            } else {
+                msg.innerText = "";
+            }
 
             document.getElementById('controls').style.display = isGameOver ? 'none' : 'flex';
             document.getElementById('next-container').style.display = isGameOver ? 'flex' : 'none';
