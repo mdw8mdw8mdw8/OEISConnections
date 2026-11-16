@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OEIS Connections</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; text-align: center; }
+        h1 { margin-bottom: 5px; }
+        p { color: #666; margin-bottom: 20px; }
+        .mistakes { margin-bottom: 20px; font-weight: bold; }
+        .circle { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #555; margin: 0 3px; }
+        .circle.lost { background-color: transparent; border: 2px solid #ccc; box-sizing: border-box; }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 30px; }
+        .card { background-color: #e5e5ea; border: 2px solid transparent; border-radius: 8px; padding: 20px 0; font-size: 1.2em; font-weight: bold; cursor: pointer; user-select: none; }
+        .card.selected { background-color: #d0d0d0; border-color: #888; }
+        .solved-banner { border-radius: 8px; padding: 15px; margin-bottom: 10px; color: white; }
+        .solved-title { font-weight: bold; margin-bottom: 5px; }
+        .controls { display: flex; justify-content: center; gap: 10px; }
+        button { padding: 12px 24px; border: none; border-radius: 25px; font-size: 1em; font-weight: bold; cursor: pointer; }
+        .btn-outline { background-color: #f2f2f7; color: #333; }
+        .btn-solid { background-color: #000; color: #fff; }
+        .btn-solid:disabled { background-color: #e5e5ea; color: #999; cursor: not-allowed; }
+        #message { font-size: 1.2em; font-weight: bold; margin-bottom: 15px; height: 1.5em; }
+    </style>
+</head>
+<body>
+    <h1>OEIS Connections</h1>
+    <p>Find groups of four number sequences with common OEIS properties.</p>
+    
+    <div class="mistakes">Mistakes remaining: <span id="mistakes-dots"></span></div>
+    
+    <div id="solved-area"></div>
+    <div id="grid" class="grid"></div>
+    <div id="message"></div>
+    
+    <div id="controls" class="controls">
+        <button class="btn-outline" id="btn-deselect">Deselect All</button>
+        <button class="btn-outline" id="btn-shuffle">Shuffle</button>
+        <button class="btn-solid" id="btn-submit" disabled>Submit</button>
+    </div>
+    <div id="next-container" class="controls" style="display: none;">
+        <button class="btn-solid" id="btn-next">Next Puzzle</button>
+    </div>
+
+    <!-- This loads your data file directly -->
+    <script src="puzzles.js"></script>
+    
+    <script>
+        // Automatic Error Checker
+        window.onload = function() {
+            if (typeof myPuzzleData === 'undefined') {
+                document.getElementById('message').innerText = "ERROR: Could not find myPuzzleData in puzzles.js!";
+                document.getElementById('message').style.color = "red";
+                return;
+            }
+            startNewGame();
+        };
+
+        let allPuzzles = [];
+        let currentPuzzle = null;
+        let boardItems = [];
+        let selectedItems = [];
+        let solvedCategories = [];
+        let mistakesRemaining = 4;
+        const themeColors = ["#ffd500", "#34c759", "#007aff", "#af52de"];
+
+        function startNewGame() {
+            allPuzzles = myPuzzleData; 
+            
+            if (allPuzzles.length === 0) {
+                document.getElementById('message').innerText = "ERROR: The puzzle list is empty.";
+                return;
+            }
+            
+            currentPuzzle = allPuzzles[Math.floor(Math.random() * allPuzzles.length)];
+            boardItems = [];
+            selectedItems = [];
+            solvedCategories = [];
+            mistakesRemaining = 4;
+            
+            currentPuzzle.categories.forEach((cat, index) => {
+                cat.color = themeColors[index % themeColors.length];
+                cat.numbers.forEach(num => {
+                    boardItems.push({ value: num, categoryId: cat.id, color: cat.color });
+                });
+            });
+            
+            shuffleArray(boardItems);
+            render();
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function toggleSelection(item) {
+            const index = selectedItems.indexOf(item);
+            if (index > -1) { selectedItems.splice(index, 1); } 
+            else if (selectedItems.length < 4) { selectedItems.push(item); }
+            render();
+        }
+
+        function submitGuess() {
+            if (selectedItems.length !== 4) return;
+            const firstId = selectedItems[0].categoryId;
+            const isCorrect = selectedItems.every(item => item.categoryId === firstId);
+            
+            if (isCorrect) {
+                const category = currentPuzzle.categories.find(c => c.id === firstId);
+                solvedCategories.push(category);
+                boardItems = boardItems.filter(item => !selectedItems.includes(item));
+            } else {
+                mistakesRemaining--;
+            }
+            selectedItems = [];
+            render();
+        }
+
+        function render() {
+            const dots = document.getElementById('mistakes-dots');
+            dots.innerHTML = '';
+            for (let i = 0; i < 4; i++) {
+                const dot = document.createElement('span');
+                dot.className = 'circle' + (i >= mistakesRemaining ? ' lost' : '');
+                if (mistakesRemaining < 2 && i < mistakesRemaining) dot.style.backgroundColor = 'red';
+                dots.appendChild(dot);
+            }
+
+            const solvedArea = document.getElementById('solved-area');
+            solvedArea.innerHTML = '';
+            solvedCategories.forEach(cat => {
+                const div = document.createElement('div');
+                div.className = 'solved-banner';
+                div.style.backgroundColor = cat.color;
+                div.innerHTML = `<div class="solved-title">${cat.id}: ${cat.name}</div>
+                                 <div style="font-size: 1.2em;">${cat.numbers.join(' &nbsp;&nbsp;&nbsp; ')}</div>`;
+                solvedArea.appendChild(div);
+            });
+
+            const isGameOver = solvedCategories.length === 4 || mistakesRemaining === 0;
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            boardItems.forEach(item => {
+                const btn = document.createElement('div');
+                btn.className = 'card' + (selectedItems.includes(item) ? ' selected' : '');
+                btn.innerText = item.value;
+                if (!isGameOver) { btn.onclick = () => toggleSelection(item); } 
+                else { btn.style.cursor = 'default'; }
+                grid.appendChild(btn);
+            });
+
+            const msg = document.getElementById('message');
+            msg.innerText = solvedCategories.length === 4 ? "Perfectly Solved!" : (mistakesRemaining === 0 ? "Out of Mistakes!" : "");
+            msg.style.color = solvedCategories.length === 4 ? "green" : "red";
+
+            document.getElementById('controls').style.display = isGameOver ? 'none' : 'flex';
+            document.getElementById('next-container').style.display = isGameOver ? 'flex' : 'none';
+            document.getElementById('btn-submit').disabled = selectedItems.length !== 4;
+        }
+
+        document.getElementById('btn-deselect').onclick = () => { selectedItems = []; render(); };
+        document.getElementById('btn-shuffle').onclick = () => { shuffleArray(boardItems); render(); };
+        document.getElementById('btn-submit').onclick = submitGuess;
+        document.getElementById('btn-next').onclick = startNewGame;
+    </script>
+</body>
+</html>
