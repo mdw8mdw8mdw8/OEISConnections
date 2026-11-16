@@ -1,6 +1,9 @@
 This page is a "connections"-like game using sequences from the OEIS (www.oeis.org).  
+
 There are four sets of consecutive (in their sequence) numbers from four different OEIS sequences.  
+
 Beware: In some cases a number may be part of more than one sequence, but there is only one correct sequence it is part of.
+
 For example:  5,14,42,132 and 5,8,13,21 are sequences that both contain the number 5, but in the puzzle:
 
 8     14   45   120
