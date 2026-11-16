@@ -24,4 +24,4 @@ Full Solution:
    
    A142 Factorial:      2,6,24,120
    
-   A1003 little Scrhoeder: 3,11,45,197
+   A1003 little Schroeder: 3,11,45,197
