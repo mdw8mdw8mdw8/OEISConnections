@@ -30,6 +30,10 @@
         .modal-content h2 { margin-top: 0; }
         .modal-content ul { text-align: left; color: #555; line-height: 1.5; padding-left: 20px; }
         .modal-content li { margin-bottom: 10px; }
+        
+        /* Make links inside the banner look clean */
+        .solved-banner a { color: white; text-decoration: underline; text-underline-offset: 3px; }
+        .solved-banner a:hover { opacity: 0.8; }
     </style>
 </head>
 <body>
@@ -42,6 +46,7 @@
                 <li>Select four numbers and tap <strong>Submit</strong> to check if your guess is correct.</li>
                 <li>You have 4 mistakes available.</li>
                 <li>If you run out of mistakes, the solution will be automatically revealed.</li>
+                <li>Tap the sequence name on a solved ribbon to view it on the OEIS website.</li>
                 <li>Tap <strong>Next Puzzle</strong> to load a new random board.</li>
             </ul>
             <button class="btn-solid" id="btn-close-help" style="margin-top: 15px; width: 100%;">Got it!</button>
@@ -49,7 +54,7 @@
     </div>
 
     <div class="header-bar">
-        <div style="width: 32px;"></div> <!-- invisible spacer to keep title centered -->
+        <div style="width: 32px;"></div>
         <h1 style="margin: 0;">OEIS Connections</h1>
         <button id="btn-help" class="btn-icon">?</button>
     </div>
@@ -73,7 +78,6 @@
     <script src="puzzles.js"></script>
     
     <script>
-        // Modal Logic
         document.getElementById('btn-help').onclick = () => document.getElementById('help-modal').style.display = 'flex';
         document.getElementById('btn-close-help').onclick = () => document.getElementById('help-modal').style.display = 'none';
 
@@ -167,10 +171,17 @@
             const solvedArea = document.getElementById('solved-area');
             solvedArea.innerHTML = '';
             solvedCategories.forEach(cat => {
+                const cleanId = cat.id.trim(); // Cleans the ID for a perfect URL
                 const div = document.createElement('div');
                 div.className = 'solved-banner';
                 div.style.backgroundColor = cat.color;
-                div.innerHTML = `<div class="solved-title">${cat.id}: ${cat.name}</div>
+                
+                // NEW LINK LOGIC: Wraps the title in an anchor tag pointing to OEIS
+                div.innerHTML = `<div class="solved-title">
+                                     <a href="https://oeis.org/${cleanId}" target="_blank" title="View on OEIS">
+                                         ${cleanId}: ${cat.name}
+                                     </a>
+                                 </div>
                                  <div style="font-size: 1.2em;">${cat.numbers.join(' &nbsp;&nbsp;&nbsp; ')}</div>`;
                 solvedArea.appendChild(div);
             });
