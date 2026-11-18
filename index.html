@@ -21,7 +21,7 @@
         .btn-solid { background-color: #000; color: #fff; }
         .btn-solid:disabled { background-color: #e5e5ea; color: #999; cursor: not-allowed; }
         #message { font-size: 1.2em; font-weight: bold; margin-bottom: 15px; height: 1.5em; }
-        
+
         /* Modal / Help Screen CSS */
         .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
         .btn-icon { width: 32px; height: 32px; border-radius: 16px; border: 1px solid #ccc; background: white; font-weight: bold; cursor: pointer; padding: 0; font-size: 1.1em; color: #555; }
@@ -30,8 +30,8 @@
         .modal-content h2 { margin-top: 0; }
         .modal-content ul { text-align: left; color: #555; line-height: 1.5; padding-left: 20px; }
         .modal-content li { margin-bottom: 10px; }
-        
-        /* Make links inside the banner look clean */
+
+        /* Clickable OEIS links inside all banners */
         .solved-banner a { color: white; text-decoration: underline; text-underline-offset: 3px; }
         .solved-banner a:hover { opacity: 0.8; }
     </style>
@@ -44,9 +44,9 @@
             <p style="text-align: left;">Find groups of four number sequences that share a common OEIS (On-Line Encyclopedia of Integer Sequences) property.</p>
             <ul>
                 <li>Select four numbers and tap <strong>Submit</strong> to check if your guess is correct.</li>
-                <li>You have 4 mistakes available.</li>
+                <li>You have 4 mistakes available. Repeated guesses will not count against you.</li>
                 <li>If you run out of mistakes, the solution will be automatically revealed.</li>
-                <li>Tap the sequence name on a solved ribbon to view it on the OEIS website.</li>
+                <li>Tap any sequence name on a ribbon to view it on the OEIS website.</li>
                 <li>Tap <strong>Next Puzzle</strong> to load a new random board.</li>
             </ul>
             <button class="btn-solid" id="btn-close-help" style="margin-top: 15px; width: 100%;">Got it!</button>
@@ -59,13 +59,13 @@
         <button id="btn-help" class="btn-icon">?</button>
     </div>
     <p>Find groups of four number sequences.</p>
-    
+
     <div class="mistakes">Mistakes remaining: <span id="mistakes-dots"></span></div>
-    
+
     <div id="solved-area"></div>
     <div id="grid" class="grid"></div>
     <div id="message"></div>
-    
+
     <div id="controls" class="controls">
         <button class="btn-outline" id="btn-deselect">Deselect All</button>
         <button class="btn-outline" id="btn-shuffle">Shuffle</button>
@@ -76,7 +76,7 @@
     </div>
 
     <script src="puzzles.js"></script>
-    
+
     <script>
         document.getElementById('btn-help').onclick = () => document.getElementById('help-modal').style.display = 'flex';
         document.getElementById('btn-close-help').onclick = () => document.getElementById('help-modal').style.display = 'none';
@@ -95,26 +95,30 @@
         let boardItems = [];
         let selectedItems = [];
         let solvedCategories = [];
+        let previousGuesses = new Set();
+        let statusMessage = "";
         let mistakesRemaining = 4;
         const themeColors = ["#ffd500", "#34c759", "#007aff", "#af52de"];
 
         function startNewGame() {
-            allPuzzles = myPuzzleData; 
+            allPuzzles = myPuzzleData;
             if (allPuzzles.length === 0) return;
-            
+
             currentPuzzle = allPuzzles[Math.floor(Math.random() * allPuzzles.length)];
             boardItems = [];
             selectedItems = [];
             solvedCategories = [];
+            previousGuesses = new Set();
+            statusMessage = "";
             mistakesRemaining = 4;
-            
+
             currentPuzzle.categories.forEach((cat, index) => {
                 cat.color = themeColors[index % themeColors.length];
                 cat.numbers.forEach(num => {
                     boardItems.push({ value: num, categoryId: cat.id, color: cat.color });
                 });
             });
-            
+
             shuffleArray(boardItems);
             render();
         }
@@ -127,31 +131,64 @@
         }
 
         function toggleSelection(item) {
+            statusMessage = "";
             const index = selectedItems.indexOf(item);
-            if (index > -1) { selectedItems.splice(index, 1); } 
+            if (index > -1) { selectedItems.splice(index, 1); }
             else if (selectedItems.length < 4) { selectedItems.push(item); }
             render();
         }
 
+        function createBannerElement(cat) {
+            const cleanId = cat.id.trim();
+            const div = document.createElement('div');
+            div.className = 'solved-banner';
+            div.style.backgroundColor = cat.color;
+            div.innerHTML = `
+                <div class="solved-title">
+                    <a href="https://oeis.org/${cleanId}" target="_blank" rel="noopener noreferrer" title="View on OEIS">
+                        ${cleanId}: ${cat.name}
+                    </a>
+                </div>
+                <div style="font-size: 1.2em;">${cat.numbers.join(' &nbsp;&nbsp;&nbsp; ')}</div>
+            `;
+            return div;
+        }
+
         function submitGuess() {
             if (selectedItems.length !== 4) return;
+
+            // Create an order-independent signature for this 4-tile guess
+            const guessKey = selectedItems
+                .map(item => `${item.value}:${item.categoryId}`)
+                .sort()
+                .join('|');
+
+            if (previousGuesses.has(guessKey)) {
+                statusMessage = "Already guessed!";
+                render();
+                return;
+            }
+
+            previousGuesses.add(guessKey);
+            statusMessage = "";
+
             const firstId = selectedItems[0].categoryId;
             const isCorrect = selectedItems.every(item => item.categoryId === firstId);
-            
+
             if (isCorrect) {
                 const category = currentPuzzle.categories.find(c => c.id === firstId);
                 solvedCategories.push(category);
                 boardItems = boardItems.filter(item => !selectedItems.includes(item));
             } else {
                 mistakesRemaining--;
-                
+
                 if (mistakesRemaining === 0) {
                     currentPuzzle.categories.forEach(cat => {
                         if (!solvedCategories.includes(cat)) {
                             solvedCategories.push(cat);
                         }
                     });
-                    boardItems = []; 
+                    boardItems = [];
                 }
             }
             selectedItems = [];
@@ -171,19 +208,7 @@
             const solvedArea = document.getElementById('solved-area');
             solvedArea.innerHTML = '';
             solvedCategories.forEach(cat => {
-                const cleanId = cat.id.trim(); // Cleans the ID for a perfect URL
-                const div = document.createElement('div');
-                div.className = 'solved-banner';
-                div.style.backgroundColor = cat.color;
-                
-                // NEW LINK LOGIC: Wraps the title in an anchor tag pointing to OEIS
-                div.innerHTML = `<div class="solved-title">
-                                     <a href="https://oeis.org/${cleanId}" target="_blank" title="View on OEIS">
-                                         ${cleanId}: ${cat.name}
-                                     </a>
-                                 </div>
-                                 <div style="font-size: 1.2em;">${cat.numbers.join(' &nbsp;&nbsp;&nbsp; ')}</div>`;
-                solvedArea.appendChild(div);
+                solvedArea.appendChild(createBannerElement(cat));
             });
 
             const isGameOver = solvedCategories.length === 4 || mistakesRemaining === 0;
@@ -193,7 +218,7 @@
                 const btn = document.createElement('div');
                 btn.className = 'card' + (selectedItems.includes(item) ? ' selected' : '');
                 btn.innerText = item.value;
-                if (!isGameOver) { btn.onclick = () => toggleSelection(item); } 
+                if (!isGameOver) { btn.onclick = () => toggleSelection(item); }
                 else { btn.style.cursor = 'default'; }
                 grid.appendChild(btn);
             });
@@ -205,6 +230,9 @@
             } else if (solvedCategories.length === 4) {
                 msg.innerText = "Perfectly Solved!";
                 msg.style.color = "green";
+            } else if (statusMessage) {
+                msg.innerText = statusMessage;
+                msg.style.color = "#d97706";
             } else {
                 msg.innerText = "";
             }
@@ -214,8 +242,8 @@
             document.getElementById('btn-submit').disabled = selectedItems.length !== 4;
         }
 
-        document.getElementById('btn-deselect').onclick = () => { selectedItems = []; render(); };
-        document.getElementById('btn-shuffle').onclick = () => { shuffleArray(boardItems); render(); };
+        document.getElementById('btn-deselect').onclick = () => { selectedItems = []; statusMessage = ""; render(); };
+        document.getElementById('btn-shuffle').onclick = () => { shuffleArray(boardItems); statusMessage = ""; render(); };
         document.getElementById('btn-submit').onclick = submitGuess;
         document.getElementById('btn-next').onclick = startNewGame;
     </script>
