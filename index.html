@@ -6,7 +6,7 @@
     <title>OEIS Connections</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; text-align: center; }
-        p { color: #666; margin-bottom: 20px; }
+        p { color: #666; margin-bottom: 15px; }
         .mistakes { margin-bottom: 20px; font-weight: bold; }
         .circle { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #555; margin: 0 3px; }
         .circle.lost { background-color: transparent; border: 2px solid #ccc; box-sizing: border-box; }
@@ -15,12 +15,19 @@
         .card.selected { background-color: #d0d0d0; border-color: #888; }
         .solved-banner { border-radius: 8px; padding: 15px; margin-bottom: 10px; color: white; }
         .solved-title { font-weight: bold; margin-bottom: 5px; }
-        .controls { display: flex; justify-content: center; gap: 10px; }
+        .controls { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
         button { padding: 12px 24px; border: none; border-radius: 25px; font-size: 1em; font-weight: bold; cursor: pointer; }
         .btn-outline { background-color: #f2f2f7; color: #333; }
         .btn-solid { background-color: #000; color: #fff; }
+        .btn-advanced { background-color: #6b21a8; color: #fff; }
         .btn-solid:disabled { background-color: #e5e5ea; color: #999; cursor: not-allowed; }
         #message { font-size: 1.2em; font-weight: bold; margin-bottom: 15px; height: 1.5em; }
+
+        /* Mode Toggle */
+        .mode-bar { display: inline-flex; background: #f2f2f7; border-radius: 20px; padding: 4px; margin-bottom: 15px; gap: 4px; }
+        .mode-btn { padding: 6px 16px; border-radius: 16px; font-size: 0.9em; background: transparent; color: #555; }
+        .mode-btn.active { background: #000; color: #fff; }
+        .mode-btn.active.adv { background: #6b21a8; color: #fff; }
 
         /* Modal / Help Screen CSS */
         .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
@@ -48,7 +55,7 @@
                 <li>If you get 3 out of 4 numbers from the same sequence, you will see a <strong>"One away..."</strong> hint.</li>
                 <li>If you run out of mistakes, the solution will be automatically revealed.</li>
                 <li>Tap any sequence name on a ribbon to view it on the OEIS website.</li>
-                <li>Tap <strong>Next Puzzle</strong> to load a new random board.</li>
+                <li>Switch between <strong>Standard</strong> and <strong>Advanced</strong> puzzles at any time.</li>
             </ul>
             <button class="btn-solid" id="btn-close-help" style="margin-top: 15px; width: 100%;">Got it!</button>
         </div>
@@ -60,6 +67,11 @@
         <button id="btn-help" class="btn-icon">?</button>
     </div>
     <p>Find groups of four number sequences.</p>
+
+    <div class="mode-bar">
+        <button id="mode-standard" class="mode-btn active">Standard</button>
+        <button id="mode-advanced" class="mode-btn">Advanced</button>
+    </div>
 
     <div class="mistakes">Mistakes remaining: <span id="mistakes-dots"></span></div>
 
@@ -73,10 +85,13 @@
         <button class="btn-solid" id="btn-submit" disabled>Submit</button>
     </div>
     <div id="next-container" class="controls" style="display: none;">
-        <button class="btn-solid" id="btn-next">Next Puzzle</button>
+        <button class="btn-solid" id="btn-next-standard">Next Standard</button>
+        <button class="btn-advanced" id="btn-next-advanced">Next Advanced</button>
     </div>
 
+    <!-- Load both puzzle files -->
     <script src="puzzles.js"></script>
+    <script src="advpuzzles.js"></script>
 
     <script>
         document.getElementById('btn-help').onclick = () => document.getElementById('help-modal').style.display = 'flex';
@@ -88,10 +103,10 @@
                 document.getElementById('message').style.color = "red";
                 return;
             }
-            startNewGame();
+            startNewGame('standard');
         };
 
-        let allPuzzles = [];
+        let currentMode = 'standard';
         let currentPuzzle = null;
         let boardItems = [];
         let selectedItems = [];
@@ -101,11 +116,29 @@
         let mistakesRemaining = 4;
         const themeColors = ["#ffd500", "#34c759", "#007aff", "#af52de"];
 
-        function startNewGame() {
-            allPuzzles = myPuzzleData;
-            if (allPuzzles.length === 0) return;
+        function updateModeUI() {
+            const stdBtn = document.getElementById('mode-standard');
+            const advBtn = document.getElementById('mode-advanced');
+            stdBtn.className = 'mode-btn' + (currentMode === 'standard' ? ' active' : '');
+            advBtn.className = 'mode-btn' + (currentMode === 'advanced' ? ' active adv' : '');
+        }
 
-            currentPuzzle = allPuzzles[Math.floor(Math.random() * allPuzzles.length)];
+        function startNewGame(mode = currentMode) {
+            const dataset = (mode === 'advanced')
+                ? (typeof advPuzzleData !== 'undefined' ? advPuzzleData : null)
+                : (typeof myPuzzleData !== 'undefined' ? myPuzzleData : null);
+
+            if (!dataset || dataset.length === 0) {
+                const missingFile = (mode === 'advanced') ? 'advpuzzles.js (advPuzzleData)' : 'puzzles.js (myPuzzleData)';
+                document.getElementById('message').innerText = `ERROR: Could not load ${missingFile}!`;
+                document.getElementById('message').style.color = "red";
+                return;
+            }
+
+            currentMode = mode;
+            updateModeUI();
+
+            currentPuzzle = dataset[Math.floor(Math.random() * dataset.length)];
             boardItems = [];
             selectedItems = [];
             solvedCategories = [];
@@ -158,7 +191,6 @@
         function submitGuess() {
             if (selectedItems.length !== 4) return;
 
-            // Create an order-independent signature for this 4-tile guess
             const guessKey = selectedItems
                 .map(item => `${item.value}:${item.categoryId}`)
                 .sort()
@@ -181,7 +213,6 @@
                 solvedCategories.push(category);
                 boardItems = boardItems.filter(item => !selectedItems.includes(item));
             } else {
-                // Check if 3 of the 4 selected tiles belong to the same sequence
                 const counts = {};
                 selectedItems.forEach(item => {
                     counts[item.categoryId] = (counts[item.categoryId] || 0) + 1;
@@ -252,10 +283,13 @@
             document.getElementById('btn-submit').disabled = selectedItems.length !== 4;
         }
 
+        document.getElementById('mode-standard').onclick = () => startNewGame('standard');
+        document.getElementById('mode-advanced').onclick = () => startNewGame('advanced');
         document.getElementById('btn-deselect').onclick = () => { selectedItems = []; statusMessage = ""; render(); };
         document.getElementById('btn-shuffle').onclick = () => { shuffleArray(boardItems); statusMessage = ""; render(); };
         document.getElementById('btn-submit').onclick = submitGuess;
-        document.getElementById('btn-next').onclick = startNewGame;
+        document.getElementById('btn-next-standard').onclick = () => startNewGame('standard');
+        document.getElementById('btn-next-advanced').onclick = () => startNewGame('advanced');
     </script>
 </body>
 </html>
