@@ -1,4 +1,4 @@
-const myPuzzleData = [
+const advPuzzleData = [
   {
     "id": "puzzle_1",
     "categories": [
